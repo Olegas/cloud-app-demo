@@ -1,0 +1,15 @@
+{
+    "name": "imageshare-example",
+    "version": "0.0.1",
+    "dependencies": {
+        "express": "2.5.x",
+        "mongoose": "2.x.x",
+        "request": "latest",
+        "connect": "latest",
+        "knox": "latest"
+    },
+    "engines": {
+        "node": "0.8.x",
+        "npm": "1.1.x"
+    }
+}
