@@ -34,7 +34,19 @@ app.get('/', function(req, res){
 
 app.post("/putfile", function(req, res){
    if(res) {
-      res.send(req.files && Object.keys(req.files).toString())
+      if(req.files && req.files.pic) {
+         client.putFile(req.files.pic.path, req.files.pic.name, { 'x-amz-acl': 'public-read' }, function(e, r){
+            if(e)
+               res.send(500);
+            else {
+               // TODO save to database
+               // print shortlink
+               res.send(204);
+            }
+         });
+      } else {
+         // TODO no file uploaded!
+      }
    } else {
       res.send(500);
    }
@@ -42,7 +54,4 @@ app.post("/putfile", function(req, res){
 
 
   /*
-client.putFile('file.txt', '/file.txt', { 'x-amz-acl': 'public-read' }, function(e, r){
-   console.log(e || r);
-   process.exit();
-}); */
+ */
