@@ -1,30 +1,39 @@
-var db = "mongodb://test:test@alex.mongohq.com:10042/app9488681";
-var bucket = "static.imageshare.elifantiev.ru";
+var db = "mongodb://USER:PASSWORD@HOSTNAME.mongohq.com:PORT/DATABASEID";
+var bucket = "s3.bucket.name";
+var amazonAPIKey = "AMAZONAPIKEYNAME";
+var amazonSecretKEy = "MySecretAmazonKey";
 
-var request = require("request");
 var fs = require('fs');
 var express = require('express');
 var connect = require('connect');
 var knox = require('knox');
 var path = require('path');
 var mongoose = require('mongoose');
+var Schema = mongoose.Schema;
+
+/**
+ * Заранее прочитаем все "шаблоны" страниц
+ */
+var indexTemplate = fs.readFileSync(path.join(__dirname, 'views', 'index.html')).toString();
+var imageTemplate = fs.readFileSync(path.join(__dirname, 'views', 'imageready.html')).toString();
 
 mongoose.connect(db);
 
-var Schema = mongoose.Schema;
-
-var ImagesSchema = new Schema({
+/**
+ * "Модель" данных для MongoDB
+ */
+var ImageItem = mongoose.model('image', new Schema({
    number: Number,
    realname: String
-});
+}));
 
-var ImageItem = mongoose.model('image', ImagesSchema);
-
-
-var client = knox.createClient({
-   key: 'AKIAI6RJ6XPKER5IWNIQ'
-   , secret: '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'
-   , bucket: bucket
+/**
+ * Клиент для S3
+ */
+var s3Client = knox.createClient({
+   key: amazonAPIKey,
+   secret: amazonSecretKEy,
+   bucket: bucket
 });
 
 var app = express.createServer();
@@ -33,18 +42,16 @@ app.configure(function(){
    app.use(connect.middleware.multipart());
 });
 
-app.listen(process.env.PORT || 3000);
-
-
+/**
+ * Показывает "индексную" страницу
+ */
 app.get('/', function(req, res){
-   fs.readFile(path.join(__dirname, 'views', 'index.html'), function(e, d){
-      if(e)
-         res.send(404);
-      else
-         res.send(d.toString());
-   });
+   res.send(indexTemplate);
 });
 
+/**
+ * Обрабатывает "короткие" ссылки
+ */
 app.get('/i/:num', function(req, res){
    ImageItem.find({ number: req.params.num }, function(err, docs){
       if(err)
@@ -55,38 +62,39 @@ app.get('/i/:num', function(req, res){
    })
 });
 
+/**
+ * Обрабатывает POST-запрос с файлом
+ */
 app.post("/putfile", function(req, res){
    if(res) {
       if(req.files && req.files.pic) {
-         client.putFile(req.files.pic.path, req.files.pic.name, { 'x-amz-acl': 'public-read' }, function(e, r){
+         // Загрузим файл
+         s3Client.putFile(req.files.pic.path, req.files.pic.name, { 'x-amz-acl': 'public-read' }, function(e, r){
             if(e)
                res.send(500, e);
             else {
+               // Если все в порядке, сохраним инфррмацию о файле в MongoDB
                var i = new ImageItem();
+               // Генерируем "уникальный" идентификатор
                i.number = +new Date();
                i.realname = req.files.pic.name;
                i.save(function(e){
                   if(e) {
                      res.send(500, e);
                   } else {
-                     fs.readFile(path.join(__dirname, 'views', 'imageready.html'), function(e, r){
-                        if(e)
-                           res.send(500, e);
-                        else
-                           res.send(r.toString().replace(/%NUM%/g, i.number));
-                     });
+                     // Когда инфррмация сохранена - выводим страничку с короткой ссылкой
+                     res.send(imageTemplate.replace(/%NUM%/g, i.number));
                   }
                });
             }
          });
       } else {
-         // TODO no file uploaded!
+         res.send(500, "No file to upload");
       }
    } else {
       res.send(500);
    }
 });
 
-
-  /*
- */
+app.listen(process.env.PORT || 3000);
+console.log("App listening on port " + (process.env.PORT || 3000));

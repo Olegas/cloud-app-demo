@@ -1,10 +1,9 @@
 {
-    "name": "imageshare-example",
+    "name": "cloud-demo-app",
     "version": "0.0.1",
     "dependencies": {
         "express": "2.5.x",
         "mongoose": "2.x.x",
-        "request": "latest",
         "connect": "latest",
         "knox": "latest"
     },
